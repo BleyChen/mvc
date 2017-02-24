@@ -1,0 +1,434 @@
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Implementing continuous deployment for Rockmetric using VSTS and Packer</title>
+    <meta name="description" content="DevOps practices help B2B startup Rockmetric reduce deployment time from days to minutes using VSTS and Packer. This report details the implementation and th...">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <link rel="alternate" type="application/rss+xml" title="Microsoft Technical Case Studies" href="https://microsoft.github.io/techcasestudies /feed.xml " />
+    <link rel="canonical" href="https://microsoft.github.io/techcasestudies/devops/2017/02/23/Rockmetric.html">
+
+    <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="/techcasestudies/css/main.css">
+
+</head>
+
+
+<body>
+
+    <header class="site-header">
+    <div class="wrapper">
+        
+            <div class="container">
+                <a class="site-title slim" href="/techcasestudies/" title="">Microsoft Technical Case Studies</a>
+            </div>
+        
+        <!-- In the freezer until we have pages
+        <nav class="site-nav">
+            <a href="#" class="menu-icon">
+                <svg viewBox="0 0 18 15">
+                    <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z" />
+                    <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z" />
+                    <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z" />
+                </svg>
+            </a>
+
+            <div class="trigger">
+                 
+                <a class="page-link" href="/techcasestudies/2016-11-21-iceberg.html">Partnering with ICEBERG to migrate an ice hockey analytics system to the cloud</a>                
+            </div>
+        </nav> -->
+    </div>
+</header>
+
+
+    <div class="page-content">
+        <div class="wrapper">
+            <div class="post">
+    <div class="row article-hero blue" >
+        <div class="container">
+            <div class="row">
+                <div class="col s12">
+                    <h4 itemprop="headline">Implementing continuous deployment for Rockmetric using VSTS and Packer</h4>
+                    <div class="row">
+                        <div class="col ss12  valign-wrapper">
+                             
+                            <span class="author-name">
+                                <a href="#" itemprop="author">Maninderjit Bindra</a>
+                            </span>-
+                            <span class="article-date">Feb 23, 2017</span>
+                            <meta itemprop="datePublished" content="2017-02-23"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+            <div class="col s12 article-content">
+                <article class="post-content">
+                    <p><img src="/techcasestudies/images/rockmetric/rockmetric.jpg" width="400" /></p>
+
+<p>Rockmetric, an India-based business-to-business startup, implemented DevOps practices to help reduce its deployment time from 2 days to 30 minutes. This report details the implementation and the business impact of establishing key DevOps practices for Rockmetric.</p>
+
+<h2 id="customer-profile">Customer profile</h2>
+
+<p><a href="http://www.rockmetric.com">Rockmetric</a> is a modern customer data analytics platform powered by cognitive intelligence. The platform has a revolutionary digital analyst, <em>Alfred</em>. Alfred creates an intelligence layer driven by natural language processing (NLP) to deliver data and insights through a conversational question-and-answer format.</p>
+
+<p>The core platform allows unification of customer data and metrics from multiple sources such as transaction data, support tools (call, email, chat, social), internal databases, CRM, marketing campaign operations, email analytics, and so on. Teams can get visualizations, automate reports, create segments, and drive action across existing tools. Teams also can create custom alerts and notifications for important metrics. Rockmetric services receive a million hits a day.</p>
+
+<p><strong>The hackfest team:</strong></p>
+
+<ul>
+  <li><a href="https://twitter.com/ruchitrami">Ruchit Rami</a> – Director of Engineering, Rockmetric</li>
+  <li>Anurag Shivastav – Senior Developer, Rockmetric</li>
+  <li>Ajay Deekonda – Senior Developer, Rockmetric</li>
+  <li><a href="https://twitter.com/mehtanimesh">Nimesh Mehta</a> – Founder, Rockmetric</li>
+  <li><a href="https://twitter.com/manisbindra">Maninderjit Bindra</a> – Senior Technical Evangelist, Microsoft</li>
+  <li><a href="https://twitter.com/s_gandhali">Gandhali Samant</a> – Senior Technical Evangelist, Microsoft</li>
+</ul>
+
+<p><img src="/techcasestudies/images/rockmetric/value-stream-mapping.png" alt="Value Stream Mapping" /></p>
+
+<p><img src="/techcasestudies/images/rockmetric/rockmetric-hackfest-1.jpeg" alt="The team during the hackfest - image 1" /></p>
+
+<p><img src="/techcasestudies/images/rockmetric/rockmetric-hackfest-2.jpeg" alt="The team during the hackfest - image 2" /></p>
+
+<h2 id="problem-statement">Problem statement</h2>
+
+<p>Microsoft performed a value stream mapping exercise with Rockmetric. In the process, we reviewed the solution architecture, processes, and tools used for developing and releasing new features to production. We found that some of the core technology components were deployed to virtual machine scale sets using custom Rockmetric virtual machine images (Linux-based). Several manual steps were involved in pushing application updates to virtual machine scale sets, such as baking new virtual machine images, generalizing the virtual machine, pushing the updated image to the virtual machine scale set, and manual testing (no automated testing). Scripts were available for some of the steps, but these were triggered manually.</p>
+
+<p>These are some of the drawbacks we found with that release approach:</p>
+
+<ul>
+  <li>Some of the steps had a dependency on a single individual. As a result, the lead time to deploy changes could vary depending on the availability of the individual. This would typically be around 1-2 days.</li>
+  <li>There were no automated UI regression tests. After new features were added, a lot of manual testing was involved to ensure no regression defects were introduced. The manual testing would take between 1-2 days.</li>
+  <li>No automated performance and load testing was done. On one occasion, Rockmetric had seen major performance degradation to one of its services after a release, which they found when manually testing and later resolved.</li>
+</ul>
+
+<p>As more and more customers are coming on to the platform, Rockmetric’s priority was to optimize the release process.</p>
+
+<h2 id="solution">Solution</h2>
+
+<h3 id="scope-of-hackfest"><em>Scope of hackfest</em></h3>
+
+<p>We agreed that the scope of the hackfest would be to create a release pipeline based on Visual Studio Team Services (VSTS) for one of the key services deployed to virtual machine scale sets. The scope included continuous deployment, automated UI testing, and load testing.</p>
+
+<p>Rockmetric provided a prototype of the identified PHP service. (The original service contains customer IP code, so we worked with the prototype for this implementation.) We would use Packer with Ansible provisioning to automate creation of a virtual machine image with the latest application code baked in.</p>
+
+<p>We also considered a single QA environment in the release pipeline.</p>
+
+<p>These are the key DevOps practices used in this scope:</p>
+
+<ul>
+  <li><strong>Infrastructure as code:</strong> We decided that all steps involved in setting up and updating the infrastructure, including steps to bake the virtual machine images, would be in configuration-managed files. This would include Azure Resource Manager templates, shell scripts, Packer files, Ansible files, and UI test and load test files. This would reduce dependency on a single individual for any of the steps.</li>
+  <li><strong>Automated testing:</strong> We decided to set up the initial UI tests using PHPUnit/Selenium, which the Rockmetric team would build upon. We also decided to set up initial load tests with JMeter, which the Rockmetric team would add to. Getting automated tests in place would bring down the lead time for manual testing to a few hours, and also improve reliability of the release.</li>
+  <li><strong>Continuous deployment:</strong> Every merge into the master branch of the repository would result in the latest application being deployed to the virtual machine scale set-based solution in the QA environment. We estimated that we would reduce the end-to-end deployment time to under an hour.</li>
+  <li><strong>Release management:</strong> Every merge into the master branch would result in deployment to QA followed by automated testing. We expected the end-to-end release time with the initial set of tests to take around an hour.</li>
+</ul>
+
+<h3 id="solution-overview"><em>Solution overview</em></h3>
+
+<p><em>Overview diagram</em></p>
+
+<p><img src="/techcasestudies/images/rockmetric/build-release-overview.png" alt="Diagram giving overview of the key application and build/release files" /></p>
+
+<h3 id="description"><em>Description</em></h3>
+
+<p>The VSTS build is triggered each time code is merged into the master branch of the application GitHub repository. The VSTS build in the prototype is a simple one that just publishes files needed for the release. The successful build then triggers a release. The first step of the release pipeline packages the latest application files into an Azure VHD image using Packer. This virtual machine image (VHD) is stored in the configured storage account.</p>
+
+<p>In the next step, the Azure CLI group deployment command is used to push the new virtual machine image (with the latest application code baked in) to the virtual machine scale set. The last two steps are for UI testing (using PHPUnit and Selenium in this case), and load testing (using JMeter, with duration assertions). At the end of each successful release, the virtual machine scale set has the latest tested application code.</p>
+
+<h3 id="github-repository"><em>GitHub repository</em></h3>
+
+<p>The <a href="https://github.com/maniSbindra/vsts-packer-vmss-php-webapp-release">GitHub repository</a> contains the prototype application code for the PHP web application, the build/release scripts (including the Packer file, UI, and load-test files), and the VSTS release template.</p>
+
+<h3 id="implementation-details">Implementation details</h3>
+
+<ul>
+  <li><strong>Step 1. Custom VSTS Linux agent configuration:</strong>
+    <ul>
+      <li>The custom VSTS agent was set up by following the steps mentioned in the post <a href="https://www.visualstudio.com/es-es/docs/build/admin/agents/v2-linux">Deploy an agent on Linux</a>.</li>
+      <li>
+        <p>Packer setup: Packer downloads are available at <a href="https://www.packer.io/downloads.html">https://www.packer.io/downloads.html</a>. The following script was used to configure Packer version 0.12.0 on the VSTS agent.</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>sudo apt-get install unzip
+wget https://releases.hashicorp.com/packer/0.12.0/packer_0.12.0_linux_amd64.zip
+unzip packer_0.12.0_linux_amd64.zip
+sudo mv packer /usr/bin/packer
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>Selenium and Xvfb setup: Xvfb and Selenium standalone were installed as services on the VSTS agent by following the steps described at <a href="https://www.namekdev.net/2016/08/selenium-server-without-x-window-system-xvfb/">https://www.namekdev.net/2016/08/selenium-server-without-x-window-system-xvfb/</a>. Before following these steps, Java and Selenium standalone 2.5.3 were installed on the agent using the following script.</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>sudo add-apt-repository ppa:openjdk-r/ppa
+sudo apt-get update
+sudo apt-get install openjdk-8-jdk
+wget http://selenium-release.storage.googleapis.com/2.53/selenium-server-standalone-2.53.1.jar
+sudo mkdir -p /usr/lib/selenium
+sudo mv selenium-server-standalone-2.53.1.jar /usr/lib/selenium/
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>Firefox headless setup: Firefox headless was set up on the VSTS agent by following the steps described at <a href="https://medium.com/@griggheo/running-selenium-webdriver-tests-using-firefox-headless-mode-on-ubuntu-d32500bb6af2#.6a3ma9zcg">https://medium.com/@griggheo/running-selenium-webdriver-tests-using-firefox-headless-mode-on-ubuntu-d32500bb6af2#.6a3ma9zcg</a>.</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>sudo apt-add-repository ppa:mozillateam/firefox-next
+sudo apt-get update
+sudo apt-get install firefox
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>PHPUnit setup: PHPUnit was set up by following the steps described at <a href="https://phpunit.de/manual/current/en/installation.html">https://phpunit.de/manual/current/en/installation.html</a>. We installed PHPUnit 5.5.4 using the following script.</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>sudo apt-get install php php-xml php-curl
+wget https://phar.phpunit.de/phpunit-5.5.4.phar
+chmod +x phpunit-5.5.4.phar
+sudo mv phpunit-5.5.4.phar /usr/bin/phpunit
+
+sudo curl -sS https://getcomposer.org/installer | php
+sudo mv composer.phar /usr/bin/composer
+
+mkdir -p ~/php-webdriver <span class="o">&amp;&amp;</span> <span class="nb">cd</span> ~/php-webdriver
+<span class="nb">echo</span> <span class="s1">'{ "require-dev": { "phpunit/phpunit": "*", "facebook/webdriver": "dev-master" } }'</span> &gt; composer.json
+composer install
+sudo cp -R vendor/ /usr/lib/selenium/
+</code></pre>
+        </div>
+      </li>
+    </ul>
+  </li>
+  <li>
+    <p><strong>Step 2. Build configuration: Build was configured to publish all files and folders in the repository.</strong></p>
+
+    <p><img src="/techcasestudies/images/rockmetric/vsts-build.PNG" alt="Build configuration" /></p>
+  </li>
+  <li><strong>Step 3. Release configuration:</strong>
+    <ul>
+      <li>
+        <p>A new release was configured to be created on each successful build.</p>
+
+        <p><img src="/techcasestudies/images/rockmetric/vsts-release-triggers.PNG" alt="VSTS Release Triggers" /></p>
+      </li>
+      <li>A single QA release environment was created.</li>
+      <li>Release environment variables: The environment variables that were configured for the release to QA are as follows:
+        <ul>
+          <li>ARM_CLIENT_ID, ARM_RESOURCE_GROUP, ARM_STORAGE_ACCOUNT, ARM_SUBSCRIPTION_ID, and ARM_TENANT_ID are used by Packer to save the baked virtual machine image VHD into the configured Azure storage account.</li>
+          <li>ADMIN_USERNAME and ADMIN_PASSWORD are the logon credentials for the virtual machine scale set virtual machines.</li>
+          <li>DEPLOYMENT_RESOURCE_GROUP is the resource group where the virtual machine scale set is deployed. These are passed to the different tasks in the release (as we will see in following steps).</li>
+        </ul>
+
+        <p><img src="/techcasestudies/images/rockmetric/environment-variables-for-release.PNG" alt="Release Environment Variables" /></p>
+      </li>
+      <li>
+        <p>Bake virtual machine image with latest application updates baked in, using Packer: The execute shell script task invokes the build-vm-image.sh file and passes it the parameters required by Packer to create the virtual machine image in the configured Azure Storage account. The following image shows configuration of this shell script step:</p>
+
+        <p><img src="/techcasestudies/images/rockmetric/release-bake-vm-image-packer.PNG" alt="Bake VM Image using Packer" /></p>
+
+        <p>The following code block shows key lines from the shell script. The environment variables are passed as positional parameters to the script in this example:</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>  <span class="nb">export </span><span class="nv">ARM_CLIENT_ID</span><span class="o">=</span><span class="nv">$1</span>
+  <span class="nb">export </span><span class="nv">ARM_CLIENT_SECRET</span><span class="o">=</span><span class="nv">$2</span>
+  <span class="nb">export </span><span class="nv">ARM_RESOURCE_GROUP</span><span class="o">=</span><span class="nv">$3</span>
+  <span class="nb">export </span><span class="nv">ARM_STORAGE_ACCOUNT</span><span class="o">=</span><span class="nv">$4</span>
+  <span class="nb">export </span><span class="nv">ARM_SUBSCRIPTION_ID</span><span class="o">=</span><span class="nv">$5</span>
+  <span class="nb">export </span><span class="nv">ARM_TENANT_ID</span><span class="o">=</span><span class="nv">$6</span>
+  <span class="nb">export </span><span class="nv">ADMIN_USERNAME</span><span class="o">=</span><span class="nv">$7</span>
+  <span class="nb">export </span><span class="nv">ADMIN_PASSWORD</span><span class="o">=</span><span class="nv">$8</span>
+  packer build ./packer-files/phpapp-packer.json 2&amp;gt;&amp;amp;1 | tee packer-build-output.log
+</code></pre>
+        </div>
+
+        <p>The Packer build configuration file php-packer.json has all the configuration to enable Packer to package the latest application code and bake the virtual machine image (including the base virtual machine image and Azure region). The following configuration section from the Packer configuration file demonstrates how the application dist folder is copied into the baked image using the file provisioner:</p>
+
+        <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="w">  </span><span class="s2">"provisioners"</span><span class="err">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+  </span><span class="err">.</span><span class="w">
+  </span><span class="err">.</span><span class="w">
+  </span><span class="p">{</span><span class="w">
+  </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"file"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"source"</span><span class="p">:</span><span class="w"> </span><span class="s2">"../dist"</span><span class="p">,</span><span class="w">
+  </span><span class="nt">"destination"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/tmp/dist"</span><span class="w">
+  </span><span class="p">},</span><span class="w">
+  </span><span class="err">.</span><span class="w">
+  </span><span class="err">.</span><span class="w">
+  </span><span class="err">.</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span></code></pre>
+        </div>
+
+        <p>Other than file and shell script provisioners, we used the Ansible provisioner, but Packer supports several other provisioners such as Chef, Puppet, PowerShell, and more. The output of the Packer build command is written to the file packer-build-command-output.log. Packer writes the image URI of the newly created VHD in the format:</p>
+
+        <div class="highlighter-rouge"><pre class="highlight"><code>  OSDiskUri: https://*********/system/Microsoft.Compute/Images/images/packer-osDisk.5a892bb0-*********-410f-8198-92c8b140390e.vhd
+</code></pre>
+        </div>
+
+        <p>The file packer-build-output.log contains the complete output of the Packer build command.</p>
+      </li>
+      <li>
+        <p>Replace the image URI in the Resource Manager template deployment parameters file with the URI of the VHD generated by Packer in the preceding step.</p>
+
+        <p><img src="/techcasestudies/images/rockmetric/overwrite-group-deployment-parameters.PNG" alt="Overwrite Image Uri Parameter value" /></p>
+
+        <p>The shell script overwrite-azure-deployment-parameters.sh is invoked, which parses the Packer out log file to retrieve the URI of the newly created VHD. It then replaces the parameter value azuredeploy.parameters.json file. A code extract of the file is shown here:</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>   <span class="nb">export </span><span class="nv">imageodisk</span><span class="o">=</span><span class="k">$(</span>cat packer-build-output.log | grep OSDiskUri: | awk <span class="s1">'{print $2}'</span><span class="k">)</span>
+
+  sed -i <span class="s1">'s/@@VMUSERNAME@@/'</span><span class="s2">"</span><span class="nv">$ADMIN_USERNAME</span><span class="s2">"</span><span class="s1">'/g'</span> azuredeploy.parameters.json
+  sed -i <span class="s1">'s/@@VMPASSWORD@@/'</span><span class="s2">"</span><span class="nv">$ADMIN_PASSWORD</span><span class="s2">"</span><span class="s1">'/g'</span> azuredeploy.parameters.json
+  sed -i <span class="s1">'s|@@IMAGEURI@@|'</span><span class="s2">"</span><span class="nv">$imageodisk</span><span class="s2">"</span><span class="s1">'|g'</span> azuredeploy.parameters.json
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>Push the updated virtual machine image to a virtual machine scale set using Azure CLI group deployment task. This task calls the deploy-vm-image.sh file and passes the resource group where the virtual machine scale set is deployed as a parameter.</p>
+
+        <p><img src="/techcasestudies/images/rockmetric/push-new-vm-image-to-vmscaleset.PNG" alt="Push new vm image to vm scale set" /></p>
+
+        <p>This script then executes the Azure group deployment command, passing it the Resource Manager template and parameters file. The script is shown here:</p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>   azure group deployment create -f azuredeploy.json -e azuredeploy.parameters.json -g <span class="nv">$1</span> -n rocdashdeploy<span class="nv">$2</span>
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>Execute a Selenium-based smoke test on the application: The execute-site-smoke-tesh.sh script then executes the PHPUnit site smoke tests.</p>
+
+        <p><img src="/techcasestudies/images/rockmetric/execute-phpunit-selenium-unit-tests.PNG" alt="Execute UI Smoke tests" /></p>
+
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code>  phpunit <span class="nv">$1site</span>-smoke-test.php <span class="nv">$2</span>
+</code></pre>
+        </div>
+      </li>
+      <li>
+        <p>Execute load tests on the application: The JMeter load test execution task then fires JMeter load tests against the site using the JMX file site-load-test.jmx (which has duration assertions).</p>
+
+        <p><img src="/techcasestudies/images/rockmetric/execute-jmeter-load-tests.PNG" alt="Execute JMeter Load tests" /></p>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>The value stream mapping activity helped us prioritize the problem areas. The release pipeline created during the hackfest demonstrated how easy it was to set up continuous deployment with automated testing using VSTS on virtual machine scale sets. We achieved the following in the hackfest:</p>
+
+<ul>
+  <li>The release time for deployment to an environment was brought down to around 30 minutes (from up to a few days).</li>
+  <li>Because the steps to bake the virtual machine image are now in the Packer template (IaC) and are a part of the release pipeline,  there is reduced dependency on a single individual for deployments.</li>
+  <li>The regression tests can now be automated as part of the release using PHPUnit and Selenium, which will reduce the duration of the manual test cycles to a few hours (from 1 to 2 days).</li>
+  <li>Because load tests with duration assertions are a part of the release, any increase in the response times will cause the release to fail.</li>
+</ul>
+
+<p>With this implementation, it will be easier for Rockmetric to deploy the solution for its customers who prefer a separate deployment in a different Azure subscription by cloning and tweaking the release pipeline.</p>
+
+<p>Since the hackfest, the Rockmetric team has started creating similar release pipelines for their production virtual machine scale set-based services.</p>
+
+<p>A quote from the Rockmetric team:</p>
+
+<blockquote>
+  <p>“Running IT systems at high scale is always challenging. With help from senior members of team Microsoft, we were able to automate a big, critical, and time-consuming process of product deployment and testing. Microsoft VSTS tools are highly integrated with other Microsoft services like Azure; the Microsoft team helped us achieve an optimal solution that makes life easy for our IT team so that we can focus on our core product.”</p>
+</blockquote>
+
+                </article>
+            </div>
+        </div>
+        <div class="divider"></div>
+    </div>
+
+        </div>
+    </div>
+
+    <?xml version="1.0" encoding="UTF-8"?>
+<footer class="site-footer">
+    <div class="wrapper">
+        
+        <div class="container">
+        
+        <div class="footer-col-wrapper slim">
+            <div class="footer-col">
+                <span id="FooterLinks">
+                    <span id="Footer_title">Microsoft Technical Case Studies</span>
+                    <span id="Footer_github">
+                        <a href="https://github.com/microsoft">Microsoft on GitHub</a>
+                    </span>
+                    <span id="Footer_privacyStatement">
+                        <a href="http://go.microsoft.com/fwlink/?LinkId=248681">Privacy &amp; Cookies</a>
+                    </span>
+                    <span id="Footer_termsOfUse">
+                        <a href="http://go.microsoft.com/fwlink/?LinkID=206977">Terms of Use</a>
+                    </span>
+                    <span id="Footer_trademarks">
+                        <a href="http://go.microsoft.com/?linkid=9851308">Trademarks</a>
+                    </span>
+                </span>
+                <div id="FooterFarStack">
+                    <div class="FooterMsLogoSvg">
+                        <a href="http://go.microsoft.com/fwlink/p/?linkid=182163" id="FooterFarStack_MsComLogoSvg_href">
+                            <svg enable-background="new 0 0 93 20" height="20px" version="1.1" viewBox="0 0 93 20" width="93px" x="0px" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" y="0px">
+                                <g id="Type">
+                                    <g>
+                                        <path
+                                            d="M 14.834 19 V 8.747 c 0 -0.779 0.045 -1.932 0.135 -3.459 h -0.045 c -0.15 0.809 -0.303 1.408 -0.46 1.797 L 9.59 19 H 7.849 L 2.941 7.197 C 2.814 6.8 2.661 6.164 2.481 5.288 H 2.414 C 2.436 5.49 2.46 6.018 2.486 6.871 c 0.026 0.854 0.04 1.591 0.04 2.212 V 19 H 0.044 V 2.896 h 3.818 L 7.961 13.07 c 0.389 0.98 0.632 1.723 0.73 2.224 h 0.067 l 0.854 -2.246 l 4.211 -10.152 h 3.661 V 19 H 14.834 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 23.281 3.435 c 0 0.427 -0.155 0.782 -0.466 1.067 c -0.311 0.285 -0.687 0.427 -1.128 0.427 c -0.442 0 -0.816 -0.142 -1.123 -0.427 c -0.307 -0.285 -0.46 -0.64 -0.46 -1.067 c 0 -0.434 0.155 -0.797 0.466 -1.089 c 0.311 -0.292 0.683 -0.438 1.118 -0.438 c 0.457 0 0.836 0.15 1.14 0.449 S 23.281 3.015 23.281 3.435 Z M 20.361 19 V 7.5 h 2.594 V 19 H 20.361 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 33.91 18.518 c -0.883 0.509 -1.973 0.764 -3.268 0.764 c -1.107 0 -2.094 -0.24 -2.959 -0.719 c -0.865 -0.479 -1.539 -1.161 -2.021 -2.045 c -0.483 -0.883 -0.724 -1.871 -0.724 -2.965 c 0 -1.25 0.249 -2.354 0.747 -3.313 c 0.498 -0.958 1.221 -1.701 2.167 -2.229 c 0.947 -0.527 2.046 -0.792 3.296 -0.792 c 0.486 0 0.992 0.054 1.516 0.163 c 0.523 0.109 0.939 0.249 1.246 0.421 v 2.459 c -0.846 -0.614 -1.729 -0.921 -2.65 -0.921 c -1.078 0 -1.951 0.361 -2.622 1.084 c -0.67 0.723 -1.005 1.686 -1.005 2.892 c 0 1.198 0.322 2.138 0.966 2.819 c 0.644 0.681 1.516 1.021 2.616 1.021 c 0.398 0 0.844 -0.086 1.338 -0.258 c 0.494 -0.173 0.947 -0.408 1.357 -0.708 V 18.518 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 42.771 10.027 c -0.135 -0.097 -0.355 -0.187 -0.663 -0.27 c -0.307 -0.083 -0.588 -0.124 -0.842 -0.124 c -0.757 0 -1.366 0.322 -1.831 0.966 c -0.464 0.645 -0.696 1.482 -0.696 2.516 V 19 h -2.594 V 7.5 h 2.594 v 2.235 h 0.045 c 0.255 -0.771 0.641 -1.37 1.157 -1.797 s 1.111 -0.64 1.785 -0.64 c 0.449 0 0.798 0.052 1.045 0.157 V 10.027 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 55.17 13.138 c 0 1.864 -0.539 3.354 -1.617 4.47 s -2.542 1.674 -4.391 1.674 c -1.774 0 -3.188 -0.53 -4.239 -1.59 s -1.578 -2.495 -1.578 -4.307 c 0 -1.909 0.539 -3.414 1.617 -4.515 s 2.571 -1.651 4.48 -1.651 c 1.797 0 3.201 0.526 4.212 1.578 C 54.665 9.849 55.17 11.296 55.17 13.138 Z M 52.475 13.228 c 0 -1.272 -0.282 -2.239 -0.848 -2.897 s -1.342 -0.988 -2.33 -0.988 c -1.019 0 -1.815 0.344 -2.393 1.033 c -0.576 0.689 -0.864 1.662 -0.864 2.92 c 0 1.221 0.288 2.169 0.864 2.847 c 0.577 0.678 1.382 1.017 2.415 1.017 c 1.04 0 1.826 -0.333 2.358 -1 C 52.209 15.492 52.475 14.516 52.475 13.228 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 64.486 15.709 c 0 1.071 -0.412 1.934 -1.235 2.589 c -0.824 0.655 -1.939 0.983 -3.347 0.983 c -0.457 0 -0.976 -0.061 -1.556 -0.18 c -0.58 -0.12 -1.064 -0.27 -1.454 -0.449 V 16.17 c 0.479 0.345 1.003 0.61 1.572 0.797 c 0.569 0.188 1.082 0.281 1.538 0.281 c 1.243 0 1.864 -0.412 1.864 -1.235 c 0 -0.292 -0.062 -0.526 -0.185 -0.702 c -0.124 -0.176 -0.337 -0.352 -0.641 -0.527 c -0.303 -0.176 -0.772 -0.395 -1.409 -0.657 c -0.749 -0.321 -1.305 -0.633 -1.668 -0.933 c -0.363 -0.299 -0.633 -0.65 -0.809 -1.055 s -0.264 -0.877 -0.264 -1.416 c 0 -1.033 0.408 -1.875 1.224 -2.527 c 0.816 -0.651 1.872 -0.977 3.167 -0.977 c 0.397 0 0.849 0.047 1.354 0.14 c 0.506 0.094 0.915 0.208 1.229 0.343 v 2.347 c -0.352 -0.24 -0.768 -0.432 -1.246 -0.579 c -0.479 -0.146 -0.955 -0.219 -1.427 -0.219 c -0.517 0 -0.924 0.116 -1.224 0.348 s -0.449 0.528 -0.449 0.887 c 0 0.404 0.118 0.721 0.354 0.949 c 0.236 0.228 0.792 0.519 1.668 0.87 c 1.078 0.434 1.838 0.917 2.279 1.449 C 64.266 14.287 64.486 14.938 64.486 15.709 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 77.858 13.138 c 0 1.864 -0.539 3.354 -1.617 4.47 s -2.542 1.674 -4.391 1.674 c -1.774 0 -3.188 -0.53 -4.239 -1.59 s -1.578 -2.495 -1.578 -4.307 c 0 -1.909 0.539 -3.414 1.617 -4.515 s 2.571 -1.651 4.48 -1.651 c 1.797 0 3.201 0.526 4.212 1.578 C 77.354 9.849 77.858 11.296 77.858 13.138 Z M 75.163 13.228 c 0 -1.272 -0.282 -2.239 -0.848 -2.897 s -1.342 -0.988 -2.33 -0.988 c -1.019 0 -1.815 0.344 -2.393 1.033 c -0.576 0.689 -0.864 1.662 -0.864 2.92 c 0 1.221 0.288 2.169 0.864 2.847 c 0.577 0.678 1.382 1.017 2.415 1.017 c 1.04 0 1.826 -0.333 2.358 -1 C 74.897 15.492 75.163 14.516 75.163 13.228 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 85.838 4.097 c -0.419 -0.187 -0.831 -0.281 -1.235 -0.281 c -0.568 0 -1.011 0.182 -1.325 0.545 c -0.314 0.363 -0.472 0.896 -0.472 1.6 V 7.5 h 2.572 v 2.089 h -2.572 V 19 h -2.628 V 9.589 h -1.932 V 7.5 h 1.932 V 5.815 c 0 -0.801 0.175 -1.514 0.522 -2.14 c 0.349 -0.625 0.839 -1.11 1.472 -1.454 c 0.632 -0.344 1.349 -0.517 2.15 -0.517 c 0.636 0 1.142 0.067 1.516 0.202 V 4.097 Z"
+                                            fill="#ffffff"></path>
+                                        <path
+                                            d="M 92.395 18.888 c -0.157 0.09 -0.437 0.178 -0.837 0.264 s -0.788 0.13 -1.162 0.13 c -2.254 0 -3.381 -1.213 -3.381 -3.639 V 9.589 h -1.909 V 7.5 h 1.909 V 4.85 l 2.605 -0.797 V 7.5 h 2.774 v 2.089 H 89.62 v 5.57 c 0 0.727 0.131 1.241 0.394 1.544 c 0.262 0.304 0.674 0.455 1.235 0.455 c 0.149 0 0.339 -0.032 0.567 -0.096 c 0.228 -0.063 0.421 -0.147 0.578 -0.252 V 18.888 Z"
+                                            fill="#ffffff"></path>
+                                    </g>
+                                </g>
+                            </svg>
+                        </a>
+                    </div>
+                    <div>
+                        <div id="FooterCopyright">© 2017 Microsoft</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        </div>
+        
+    </div>
+</footer>
+
+    <script src="/techcasestudies/javascripts/wedcs.js"></script>
+    <script src="//c.microsoft.com/ms.js"></script>
+    <script src="//code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script>
+        window.jQuery || document.write('<script src="javascrtips/jquery-2.1.4.min.js"><\/script>')
+    </script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.97.0/js/materialize.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/packery/1.4.2/packery.pkgd.min.js"></script>
+    <script src="/techcasestudies/javascripts/main.js"></script>
+    <script src="/techcasestudies/javascripts/interactions.js"></script>
+</body>
+</html>
